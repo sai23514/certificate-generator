@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bulk Certificate Generator</title>
+<style>
+  :root { --bg:#f4f6fa; --card:#fff; --ink:#1c2433; --muted:#6b7587; --line:#e2e6ee; --brand:#1f3a5f; --ok:#1a7f45; --bad:#c0392b; --warn:#b7791f; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:14px/1.4 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { background:var(--brand); color:#fff; padding:12px 20px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { margin:0; font-size:18px; }
+  header a { color:#cfe0ff; font-size:13px; }
+  main { display:grid; grid-template-columns: 420px 1fr; gap:16px; padding:16px; max-width:1300px; margin:auto; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:14px; }
+  .card h2 { margin:0 0 10px; font-size:14px; text-transform:uppercase; letter-spacing:.04em; color:var(--muted); }
+  label { display:block; font-size:12px; color:var(--muted); margin-bottom:3px; }
+  input, textarea, select { width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:6px; font:inherit; background:#fff; }
+  input:focus, textarea:focus, select:focus { outline:2px solid #9db8e6; border-color:#9db8e6; }
+  textarea { resize:vertical; min-height:150px; font-family:ui-monospace,Consolas,monospace; font-size:13px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .field { margin-bottom:10px; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .spread { justify-content:space-between; }
+  button, .btn { background:var(--brand); color:#fff; border:0; border-radius:6px; padding:8px 14px; font:inherit; cursor:pointer; text-decoration:none; display:inline-block; }
+  button:hover, .btn:hover { filter:brightness(1.15); }
+  button:disabled, .btn.disabled { opacity:.45; cursor:not-allowed; pointer-events:none; }
+  .btn.ghost, button.ghost { background:#fff; color:var(--brand); border:1px solid var(--line); }
+  .btn.small, button.small { padding:3px 9px; font-size:12px; }
+  .hint { color:var(--muted); font-size:12px; }
+  .error { background:#fdecea; color:var(--bad); border:1px solid #f5c2bd; padding:8px 10px; border-radius:6px; margin-top:10px; display:none; white-space:pre-wrap; }
+  .badge { display:inline-block; padding:2px 10px; border-radius:99px; font-size:12px; font-weight:600; color:#fff; background:var(--muted); }
+  .badge.completed, .badge.succeeded { background:var(--ok); }
+  .badge.completed_with_errors { background:var(--warn); }
+  .badge.failed { background:var(--bad); }
+  .badge.processing { background:#2b6cb0; }
+  .bar { height:12px; background:#e8ecf3; border-radius:99px; overflow:hidden; margin:10px 0; }
+  .bar > div { height:100%; width:0; background:var(--ok); transition:width .3s; }
+  .stats { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .stat { background:var(--bg); border-radius:8px; padding:6px 12px; text-align:center; min-width:70px; }
+  .stat b { display:block; font-size:18px; }
+  .stat span { font-size:11px; color:var(--muted); }
+  .tablewrap { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:6px 10px; border-bottom:1px solid var(--line); font-size:13px; }
+  th { position:sticky; top:0; background:#f8f9fc; font-size:12px; color:var(--muted); }
+  td.err { color:var(--bad); font-size:12px; }
+  .recent { max-height:150px; overflow:auto; }
+  .recent div { display:flex; justify-content:space-between; gap:8px; padding:5px 0; border-bottom:1px solid var(--line); cursor:pointer; }
+  .recent div:hover { background:var(--bg); }
+  code { background:var(--bg); padding:1px 5px; border-radius:4px; font-size:12px; }
+  .empty { color:var(--muted); text-align:center; padding:40px 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🎓 Bulk Certificate Generator</h1>
+  <a href="/docs" target="_blank">API docs ↗</a>
+</header>
+
+<main>
+  <!-- LEFT: create -->
+  <section>
+    <div class="card">
+      <h2>1 · Certificate details</h2>
+      <div class="field"><label>Course / event name *</label><input id="course" value="Advanced Python Workshop" maxlength="120"></div>
+      <div class="grid2">
+        <div class="field"><label>Issued by *</label><input id="issuer" value="Acme Academy" maxlength="100"></div>
+        <div class="field"><label>Issue date</label><input id="date" type="date"></div>
+      </div>
+      <div class="field"><label>Certificate title</label><input id="title" value="Certificate of Completion" maxlength="80"></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Recipients</h2>
+      <label>One per line: <code>Name, email</code> (email is optional)</label>
+      <textarea id="recipients" placeholder="Asha Rao, asha@example.com&#10;Ben Carter&#10;Chen Wei, chen@example.com"></textarea>
+      <div class="row spread" style="margin-top:8px">
+        <span class="hint" id="count">0 recipients</span>
+        <span>
+          <input type="file" id="file" accept=".csv,.txt" hidden>
+          <button class="ghost small" onclick="document.getElementById('file').click()">Load .csv / .txt</button>
+          <button class="ghost small" id="sample">Sample data</button>
+        </span>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button id="go" style="flex:1">Generate certificates</button>
+      </div>
+      <div class="error" id="formError"></div>
+    </div>
+
+    <div class="card">
+      <h2>Recent jobs</h2>
+      <div class="recent" id="recent"><span class="hint">None yet</span></div>
+    </div>
+  </section>
+
+  <!-- RIGHT: result -->
+  <section>
+    <div class="card" id="empty"><div class="empty">Fill the form and click <b>Generate certificates</b>.<br>Progress and downloads will appear here.</div></div>
+
+    <div class="card" id="result" style="display:none">
+      <div class="row spread">
+        <div class="row"><h2 style="margin:0">Result</h2> <span class="badge" id="status"></span></div>
+        <div class="row">
+          <button class="ghost small" id="copyId" title="Copy job ID">Copy job ID</button>
+          <a class="btn small disabled" id="zip">⬇ Download all (ZIP)</a>
+        </div>
+      </div>
+      <div class="bar"><div id="bar"></div></div>
+      <div class="stats">
+        <div class="stat"><b id="sTotal">0</b><span>Total</span></div>
+        <div class="stat"><b id="sOk" style="color:var(--ok)">0</b><span>Succeeded</span></div>
+        <div class="stat"><b id="sBad" style="color:var(--bad)">0</b><span>Failed</span></div>
+        <div class="stat"><b id="sPending">0</b><span>Pending</span></div>
+        <div class="stat"><b id="sPct">0%</b><span>Progress</span></div>
+      </div>
+      <div class="hint" id="jobMeta" style="margin-bottom:10px"></div>
+
+      <div class="row spread" style="margin-bottom:6px">
+        <b>Certificates</b>
+        <select id="filter" style="width:auto">
+          <option value="">All</option><option value="succeeded">Succeeded</option>
+          <option value="failed">Failed</option><option value="pending">Pending</option>
+        </select>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Status</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="hint" id="more" style="margin-top:6px"></div>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const API = "/api/v1";
+const TERMINAL = ["completed", "completed_with_errors", "failed"];
+let currentJob = null, timer = null, polls = 0;
+
+$("date").value = new Date().toISOString().slice(0, 10);
+
+// ---------- helpers
+function esc(s) { const d = document.createElement("div"); d.textContent = s ?? ""; return d.innerHTML; }
+function showError(msg) { const e = $("formError"); e.textContent = msg; e.style.display = msg ? "block" : "none"; }
+function parseRecipients(text) {
+  return text.split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(line => {
+    const i = line.search(/[,\t;]/);
+    const name = (i < 0 ? line : line.slice(0, i)).trim();
+    const email = i < 0 ? "" : line.slice(i + 1).trim();
+    return email ? { name, email } : { name };
+  });
+}
+function updateCount() { const n = parseRecipients($("recipients").value).length; $("count").textContent = n + " recipient" + (n === 1 ? "" : "s"); }
+function explain(body) {
+  if (!body) return "Request failed";
+  if (typeof body.detail === "string") return body.detail;
+  if (Array.isArray(body.detail)) return body.detail.map(d => (d.loc || []).slice(1).join(".") + ": " + d.msg).join("\n");
+  return JSON.stringify(body);
+}
+
+// ---------- form
+$("recipients").addEventListener("input", updateCount);
+$("sample").onclick = () => {
+  $("recipients").value = "Asha Rao, asha@example.com\nBen Carter, ben@example.com\nChen Wei\nDara Singh, dara@example.com\n, missing-name@example.com\nBad Email, not-an-email";
+  updateCount();
+};
+$("file").onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  let text = await f.text();
+  const lines = text.split(/\r?\n/);
+  if (lines[0] && /^\s*"?name"?\s*[,;\t]/i.test(lines[0])) lines.shift(); // skip header row
+  $("recipients").value = lines.join("\n").replace(/"/g, ""); updateCount(); e.target.value = "";
+};
+
+$("go").onclick = async () => {
+  showError("");
+  const recipients = parseRecipients($("recipients").value);
+  if (!recipients.length) return showError("Add at least one recipient.");
+  const payload = {
+    course_name: $("course").value, issuer_name: $("issuer").value,
+    certificate_title: $("title").value || undefined,
+    issue_date: $("date").value || undefined, recipients
+  };
+  $("go").disabled = true; $("go").textContent = "Submitting…";
+  try {
+    const r = await fetch(API + "/jobs", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const body = await r.json();
+    if (!r.ok) return showError(explain(body));
+    saveRecent(body, payload.course_name);
+    openJob(body.id);
+  } catch (err) { showError("Could not reach the server: " + err.message); }
+  finally { $("go").disabled = false; $("go").textContent = "Generate certificates"; }
+};
+
+// ---------- job view
+function openJob(id) {
+  currentJob = id; polls = 0; clearInterval(timer);
+  $("empty").style.display = "none"; $("result").style.display = "block";
+  refresh(true);
+  timer = setInterval(() => refresh(false), 1000);
+}
+async function refresh(first) {
+  if (!currentJob) return;
+  const id = currentJob;
+  const r = await fetch(`${API}/jobs/${id}`);
+  if (id !== currentJob) return;
+  if (!r.ok) { clearInterval(timer); return; }
+  const j = await r.json();
+  renderJob(j);
+  polls++;
+  const done = TERMINAL.includes(j.status);
+  if (first || done || polls % 3 === 0) loadRows();
+  if (done) { clearInterval(timer); updateRecent(j); }
+}
+function renderJob(j) {
+  $("status").textContent = j.status.replace(/_/g, " "); $("status").className = "badge " + j.status;
+  $("bar").style.width = j.progress_percent + "%";
+  $("sTotal").textContent = j.counts.total; $("sOk").textContent = j.counts.succeeded;
+  $("sBad").textContent = j.counts.failed; $("sPending").textContent = j.counts.pending;
+  $("sPct").textContent = Math.round(j.progress_percent) + "%";
+  $("jobMeta").textContent = `${j.course_name} · ${j.issuer_name} · ${j.issue_date}`;
+  const zip = $("zip"), ready = j.links.download_all;
+  zip.classList.toggle("disabled", !ready); if (ready) zip.href = ready; else zip.removeAttribute("href");
+  $("copyId").onclick = () => { navigator.clipboard.writeText(j.id); $("copyId").textContent = "Copied ✓"; setTimeout(() => $("copyId").textContent = "Copy job ID", 1200); };
+}
+async function loadRows() {
+  const id = currentJob, f = $("filter").value;
+  const r = await fetch(`${API}/jobs/${id}/certificates?limit=500` + (f ? `&status=${f}` : ""));
+  if (!r.ok || id !== currentJob) return;
+  const page = await r.json();
+  $("rows").innerHTML = page.items.map(c => `
+    <tr><td>${c.row_index}</td>
+    <td>${esc(c.recipient_name) || "<i class='hint'>(blank)</i>"}${c.error ? `<div class="err" style="color:var(--bad);font-size:12px">${esc(c.error)}</div>` : ""}</td>
+    <td><span class="badge ${c.status}">${c.status}</span></td>
+    <td>${c.download_url ? `<a class="btn small ghost" href="${c.download_url}">Download</a>` : ""}</td></tr>`).join("")
+    || `<tr><td colspan="4" class="hint" style="text-align:center;padding:16px">Nothing to show</td></tr>`;
+  $("more").textContent = page.total > page.items.length ? `Showing first ${page.items.length} of ${page.total}. Use the ZIP for everything.` : "";
+}
+$("filter").onchange = loadRows;
+
+// ---------- recent jobs (stored in this browser only)
+function recentList() { try { return JSON.parse(localStorage.getItem("recentJobs") || "[]"); } catch { return []; } }
+function saveRecent(job, course) {
+  const list = recentList().filter(x => x.id !== job.id);
+  list.unshift({ id: job.id, course, total: job.counts.total, status: job.status, at: new Date().toLocaleTimeString() });
+  localStorage.setItem("recentJobs", JSON.stringify(list.slice(0, 8))); renderRecent();
+}
+function updateRecent(j) {
+  const list = recentList(); const x = list.find(i => i.id === j.id);
+  if (x) { x.status = j.status; localStorage.setItem("recentJobs", JSON.stringify(list)); renderRecent(); }
+}
+function renderRecent() {
+  const list = recentList();
+  $("recent").innerHTML = list.length ? list.map(x =>
+    `<div data-id="${x.id}"><span>${esc(x.course)} <span class="hint">(${x.total})</span></span><span class="hint">${x.at}</span></div>`).join("")
+    : '<span class="hint">None yet</span>';
+  $("recent").querySelectorAll("div[data-id]").forEach(el => el.onclick = () => openJob(el.dataset.id));
+}
+renderRecent(); updateCount();
+</script>
+</body>
+</html>
