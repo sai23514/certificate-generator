@@ -19,6 +19,7 @@ pip install -r requirements-dev.txt  # runtime + test dependencies
 uvicorn app.main:app --reload
 ```
 
+* **Web UI: http://127.0.0.1:8000/** (paste recipients, watch progress, download PDFs / ZIP)
 * API: http://127.0.0.1:8000/api/v1 &nbsp;|&nbsp; interactive docs (Swagger): http://127.0.0.1:8000/docs
 * Tables are created on startup. Data goes to `./certificates.db`, PDFs to `./storage/<job_id>/<certificate_id>.pdf`.
 
@@ -37,7 +38,10 @@ pytest
 ```
 
 Tests use a temporary SQLite database and storage folder, so they never touch real data.
-They cover job creation, validation, certificate generation, progress/status, individual failures and retrieval.
+They cover job creation, validation, certificate generation, progress/status, individual failures, retrieval and the web UI page.
+
+> If `pytest` crashes with a `pytest_asyncio ... 'Package' object has no attribute 'obj'` error, an old global
+> `pytest-asyncio` plugin is installed. Use a fresh virtual environment (see Setup) or run `pytest -p no:asyncio`.
 
 ## API
 
